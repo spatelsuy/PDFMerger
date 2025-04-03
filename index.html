@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Offline PDF Merger</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.12.313/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .drop-area {
+            border: 2px dashed #ccc;
+            border-radius: 5px;
+            padding: 30px;
+            text-align: center;
+            margin-bottom: 20px;
+            cursor: pointer;
+        }
+        .drop-area.highlight {
+            border-color: #4CAF50;
+            background-color: #f8f8f8;
+        }
+        #fileInput {
+            display: none;
+        }
+        #thumbnailContainer {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .thumbnail {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 5px;
+            width: 150px;
+            position: relative;
+        }
+        .thumbnail img {
+            width: 100%;
+            height: auto;
+            display: block;
+            margin-bottom: 5px;
+        }
+        .thumbnail .page-number {
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+        .thumbnail .remove-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: rgba(255,0,0,0.7);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+        .thumbnail .move-up, .thumbnail .move-down {
+            background: rgba(0,0,0,0.5);
+            color: white;
+            border: none;
+            border-radius: 3px;
+            padding: 2px 5px;
+            margin: 2px;
+            cursor: pointer;
+            font-size: 10px;
+        }
+        #mergeBtn {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        #mergeBtn:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .file-info {
+            font-size: 12px;
+            margin-top: 5px;
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body>
+    <h1>Offline PDF Merger</h1>
+    <p>Select multiple PDF files to merge. All processing happens in your browser - your files never leave your computer.</p>
+    
+    <div class="drop-area" id="dropArea">
+        <p>Drag & drop PDF files here or click to select</p>
+        <input type="file" id="fileInput" accept=".pdf" multiple>
+    </div>
+    
+    <div id="thumbnailContainer"></div>
+    
+    <button id="mergeBtn" disabled>Merge PDFs</button>
+    
+    <script src="app.js"></script>
+</body>
+</html>
