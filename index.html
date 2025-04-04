@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ultimate Secure PDF Merger</title>
+    <title>Secure PDF Merger</title>
     
     <!-- Primary CSP (HTML level) -->
     <meta http-equiv="Content-Security-Policy" 
@@ -24,356 +24,55 @@
     <meta http-equiv="X-Frame-Options" content="DENY">
     <meta http-equiv="Referrer-Policy" content="no-referrer">
     
-    <!-- Trusted Types Policy -->
-    <script>
-        if (window.trustedTypes && trustedTypes.createPolicy) {
-            trustedTypes.createPolicy('default', {
-                createHTML: string => {
-                    const div = document.createElement('div');
-                    div.textContent = string;
-                    return div.innerHTML;
-                },
-                createScriptURL: string => {
-                    if (!string.startsWith('https://cdnjs.cloudflare.com/') && 
-                        !string.startsWith(window.location.origin)) {
-                        throw new Error('Untrusted script URL');
-                    }
-                    return string;
-                }
-            });
-        }
-    </script>
-    
-    <!-- Library References with SRI -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.12.313/pdf.min.js"
-            integrity="sha512-Z2C9z4h2gFyqtj9Tp/LqGqP0I+3wDkQ5g5bXod4WIZJZQK/6M9u0RZW3WJa7QZk8Zq+lyD7y/1YoUQpG+AE0Yg=="
-            crossorigin="anonymous"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"
-            integrity="sha512-+qcj6C/oQHxrk0pKX5VZJZRk8QqLg9oMgD/0HvXXqQ1bKSPRBrRPHZ8NtqMJH3QvR1ZPvXqDgQZc6Rjvq9H3A=="
-            crossorigin="anonymous"></script>
-    
+    <!-- Library Documentation -->
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        
-        .drop-area {
-            border: 2px dashed #ccc;
-            border-radius: 5px;
-            padding: 30px;
-            text-align: center;
-            margin-bottom: 20px;
-            cursor: pointer;
-        }
-        
-        .drop-area.highlight {
-            border-color: #4CAF50;
-            background-color: #f8f8f8;
-        }
-        
-        #fileInput {
-            display: none;
-        }
-        
-        #thumbnailContainer {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-        
-        .thumbnail {
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            padding: 5px;
-            width: 150px;
-            position: relative;
-        }
-        
-        .thumbnail img {
-            width: 100%;
-            height: auto;
-            display: block;
-            margin-bottom: 5px;
-        }
-        
-        .thumbnail .page-number {
-            position: absolute;
-            top: 5px;
-            left: 5px;
-            background: rgba(0,0,0,0.7);
-            color: white;
-            padding: 2px 5px;
-            border-radius: 3px;
-            font-size: 12px;
-        }
-        
-        .thumbnail .remove-btn {
-            position: absolute;
-            top: 5px;
-            right: 5px;
-            background: rgba(255,0,0,0.7);
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 20px;
-            height: 20px;
-            cursor: pointer;
-        }
-        
-        .thumbnail .move-up, .thumbnail .move-down {
-            background: rgba(0,0,0,0.5);
-            color: white;
-            border: none;
-            border-radius: 3px;
-            padding: 2px 5px;
-            margin: 2px;
-            cursor: pointer;
-            font-size: 10px;
-        }
-        
-        #mergeBtn {
-            background-color: #4CAF50;
-            color: white;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 16px;
-        }
-        
-        #mergeBtn:disabled {
-            background-color: #cccccc;
-            cursor: not-allowed;
-        }
-        
-        .file-info {
-            font-size: 12px;
-            margin-top: 5px;
-            word-break: break-all;
-        }
-        
-        /* Preview Modal Styles */
-        #previewModal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.8);
-            z-index: 1000;
-            overflow: auto;
-        }
-        
-        .modal-content {
-            background: white;
-            margin: 5% auto;
-            padding: 20px;
-            width: 80%;
-            max-width: 900px;
-            border-radius: 8px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-        }
-        
-        #pdfPreviewContainer {
-            position: relative;
-            width: 100%;
-            height: 70vh;
-            border: 1px solid #ddd;
-            margin-bottom: 20px;
-        }
-        
-        #pdfPreview {
-            width: 100%;
-            height: 100%;
-            border: none;
-        }
-        
-        #securityWatermark {
-            position: absolute;
-            bottom: 10px;
-            right: 10px;
-            color: rgba(0,0,0,0.2);
-            font-size: 16px;
-            pointer-events: none;
-        }
-        
-        .action-buttons {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin-top: 20px;
-        }
-        
-        .action-btn {
-            padding: 10px 15px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
+        /* Your existing styles plus: */
+        .library-info {
+            background: #f8f9fa;
+            border-left: 4px solid #4CAF50;
+            padding: 15px;
+            margin: 20px 0;
             font-size: 14px;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-        
-        .download-btn { background: #4CAF50; color: white; }
-        .print-btn { background: #2196F3; color: white; }
-        .drive-btn { background: #4285F4; color: white; }
-        .onedrive-btn { background: #0078D7; color: white; }
-        .email-btn { background: #FF5722; color: white; }
-        .whatsapp-btn { background: #25D366; color: white; }
-        .cancel-btn { background: #f44336; color: white; }
-        
-        .file-error {
-            color: #f44336;
-            margin: 10px 0;
-            display: none;
-        }
-        
-        .validation-status {
-            display: none;
-            padding: 10px;
-            margin: 5px 0;
-            border-radius: 4px;
-            font-size: 14px;
-        }
-        
-        .validation-valid {
-            background: #e8f5e9;
-            color: #2e7d32;
-            border-left: 4px solid #2e7d32;
-        }
-        
-        .validation-invalid {
-            background: #ffebee;
-            color: #c62828;
-            border-left: 4px solid #c62828;
-        }
-        
-        .security-badge {
-            position: fixed;
-            bottom: 10px;
-            right: 10px;
-            background: #4CAF50;
-            color: white;
-            padding: 8px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-        
-        .security-badge::before {
-            content: "🔒";
-        }
-        
-        /* Loading indicator */
-        .loader {
-            display: none;
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #3498db;
-            border-radius: 50%;
-            width: 30px;
-            height: 30px;
-            animation: spin 2s linear infinite;
-            margin: 20px auto;
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
         }
     </style>
 </head>
 <body>
-    <div class="security-badge">Secure Offline Processing</div>
-    
-    <h1>Ultimate Secure PDF Merger</h1>
-    <p>Merge PDFs completely offline with enterprise-grade security. Your files never leave your device.</p>
-    
-    <div class="drop-area" id="dropArea">
-        <p>Drag & drop PDF files here or click to select</p>
-        <input type="file" id="fileInput" accept=".pdf" multiple>
-    </div>
-    
-    <div id="validationStatus" class="validation-status"></div>
-    <div id="thumbnailContainer"></div>
-    <div id="loader" class="loader"></div>
-    
-    <button id="mergeBtn" disabled>Merge PDFs</button>
-    
-    <!-- Preview Modal -->
-    <div id="previewModal">
-        <div class="modal-content">
-            <h2>Merged PDF Preview</h2>
-            <div id="pdfPreviewContainer">
-                <iframe id="pdfPreview" sandbox="allow-same-origin"></iframe>
-                <div id="securityWatermark"></div>
-            </div>
-            <div id="fileError" class="file-error"></div>
-            <div class="action-buttons">
-                <button class="action-btn download-btn" id="downloadBtn">
-                    <span>Download</span>
-                </button>
-                <button class="action-btn print-btn" id="printBtn">
-                    <span>Print</span>
-                </button>
-                <button class="action-btn drive-btn" id="driveBtn">
-                    <span>Save to Google Drive</span>
-                </button>
-                <button class="action-btn onedrive-btn" id="onedriveBtn">
-                    <span>Save to OneDrive</span>
-                </button>
-                <button class="action-btn email-btn" id="emailBtn">
-                    <span>Send via Email</span>
-                </button>
-                <button class="action-btn whatsapp-btn" id="whatsappBtn">
-                    <span>Share via WhatsApp</span>
-                </button>
-                <button class="action-btn cancel-btn" id="cancelBtn">
-                    <span>Cancel</span>
-                </button>
-            </div>
-        </div>
+    <div class="library-info">
+        <h3>JavaScript Libraries Used:</h3>
+        <ul>
+            <li><strong>PDF.js v2.12.313</strong> - Mozilla's PDF rendering library (<a href="https://mozilla.github.io/pdf.js/" target="_blank" rel="noopener noreferrer">Official Site</a>)</li>
+            <li><strong>PDF-Lib v1.17.1</strong> - PDF manipulation library (<a href="https://pdf-lib.js.org/" target="_blank" rel="noopener noreferrer">Official Site</a>)</li>
+        </ul>
+        <p>Loaded securely from Cloudflare CDN with Subresource Integrity (SRI) checks.</p>
     </div>
 
-
-<!-- Load PDF.js with worker -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.12.313/pdf.min.js"></script>
-<script>
-  // Initialize PDF.js worker
-  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.12.313/pdf.worker.min.js';
-</script>
-<script src="app.js"></script> <!-- Your code comes AFTER -->    
+    <!-- Rest of your HTML content -->
     
-    <!-- Secondary CSP (JavaScript level) -->
+    <!-- Load PDF.js first with Trusted Types compatibility -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.12.313/pdf.min.js"
+            integrity="sha512-Z2C9z4h2gFyqtj9Tp/LqGqP0I+3wDkQ5g5bXod4WIZJZQK/6M9u0RZW3WJa7QZk8Zq+lyD7y/1YoUQpG+AE0Yg=="
+            crossorigin="anonymous"></script>
     <script>
-        // Enhance CSP when cloud features are needed
-        function enableCloudFeatures() {
-            const newCsp = `
-                default-src 'none';
-                script-src 'self' cdnjs.cloudflare.com 'wasm-unsafe-eval' apis.google.com;
-                style-src 'self' 'unsafe-inline';
-                img-src 'self' data: blob:;
-                font-src 'self';
-                connect-src 'self' https://www.googleapis.com https://graph.microsoft.com;
-                object-src 'none';
-                frame-src 'none';
-                base-uri 'self';
-                form-action 'none' https://docs.google.com;
-                require-trusted-types-for 'script';
-            `.replace(/\n/g, '').trim();
-            
-            const meta = document.createElement('meta');
-            meta.httpEquiv = 'Content-Security-Policy';
-            meta.content = newCsp;
-            document.head.appendChild(meta);
-        }
+        // Initialize PDF.js worker with Trusted Types compatibility
+        (function() {
+            const workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.12.313/pdf.worker.min.js';
+            if (window.trustedTypes && trustedTypes.createPolicy) {
+                const policy = trustedTypes.createPolicy('pdfjsWorker', {
+                    createScriptURL: () => workerSrc
+                });
+                pdfjsLib.GlobalWorkerOptions.workerSrc = policy.createScriptURL('');
+            } else {
+                pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc;
+            }
+        })();
     </script>
+    
+    <!-- Then load PDF-Lib -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"
+            integrity="sha512-+qcj6C/oQHxrk0pKX5VZJZRk8QqLg9oMgD/0HvXXqQ1bKSPRBrRPHZ8NtqMJH3QvR1ZPvXqDgQZc6Rjvq9H3A=="
+            crossorigin="anonymous"></script>
+    
+    <!-- Your app.js comes last -->
+    <script src="app.js"></script>
 </body>
 </html>
