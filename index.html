@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Secure PDF Merger</title>
     
-    <!-- Primary CSP (HTML level) -->
+    <!-- Security Headers -->
     <meta http-equiv="Content-Security-Policy" 
           content="default-src 'none';
                   script-src 'self' cdnjs.cloudflare.com 'wasm-unsafe-eval';
@@ -18,42 +18,200 @@
                   base-uri 'self';
                   form-action 'none';
                   require-trusted-types-for 'script'">
-    
-    <!-- Security Headers -->
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
     <meta http-equiv="X-Frame-Options" content="DENY">
     <meta http-equiv="Referrer-Policy" content="no-referrer">
     
-    <!-- Library Documentation -->
     <style>
-        /* Your existing styles plus: */
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .drop-area {
+            border: 2px dashed #ccc;
+            border-radius: 5px;
+            padding: 30px;
+            text-align: center;
+            margin-bottom: 20px;
+            cursor: pointer;
+        }
+        
+        .drop-area.highlight {
+            border-color: #4CAF50;
+            background-color: #f8f8f8;
+        }
+        
+        #fileInput {
+            display: none;
+        }
+        
+        #thumbnailContainer {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .thumbnail {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 5px;
+            width: 150px;
+            position: relative;
+        }
+        
+        .thumbnail img {
+            width: 100%;
+            height: auto;
+            display: block;
+            margin-bottom: 5px;
+        }
+        
+        .thumbnail .page-number {
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+        
+        .thumbnail .remove-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: rgba(255,0,0,0.7);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+        
+        #mergeBtn {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        #mergeBtn:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        
         .library-info {
             background: #f8f9fa;
             border-left: 4px solid #4CAF50;
             padding: 15px;
             margin: 20px 0;
-            font-size: 14px;
         }
+        
+        .security-badge {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            background: #4CAF50;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 20px;
+        }
+        
+        #previewModal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 1000;
+        }
+        
+        .modal-content {
+            background: white;
+            margin: 5% auto;
+            padding: 20px;
+            width: 80%;
+            max-width: 900px;
+            border-radius: 8px;
+        }
+        
+        #pdfPreview {
+            width: 100%;
+            height: 70vh;
+            border: 1px solid #ddd;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .action-btn {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .download-btn { background: #4CAF50; color: white; }
+        .print-btn { background: #2196F3; color: white; }
+        .cancel-btn { background: #f44336; color: white; }
     </style>
 </head>
 <body>
+    <div class="security-badge">Secure Offline Processing</div>
+    
     <div class="library-info">
         <h3>JavaScript Libraries Used:</h3>
         <ul>
-            <li><strong>PDF.js v2.12.313</strong> - Mozilla's PDF rendering library (<a href="https://mozilla.github.io/pdf.js/" target="_blank" rel="noopener noreferrer">Official Site</a>)</li>
-            <li><strong>PDF-Lib v1.17.1</strong> - PDF manipulation library (<a href="https://pdf-lib.js.org/" target="_blank" rel="noopener noreferrer">Official Site</a>)</li>
+            <li><strong>PDF.js v2.12.313</strong> - From Mozilla (<a href="https://mozilla.github.io/pdf.js/" target="_blank" rel="noopener">Official Site</a>)</li>
+            <li><strong>PDF-Lib v1.17.1</strong> - PDF manipulation (<a href="https://pdf-lib.js.org/" target="_blank" rel="noopener">Official Site</a>)</li>
         </ul>
-        <p>Loaded securely from Cloudflare CDN with Subresource Integrity (SRI) checks.</p>
+        <p>Loaded securely from Cloudflare CDN with integrity checks.</p>
+    </div>
+    
+    <h1>Secure PDF Merger</h1>
+    <p>Merge PDFs completely offline. Your files never leave your device.</p>
+    
+    <div class="drop-area" id="dropArea">
+        <p>Drag & drop PDF files here or click to select</p>
+        <input type="file" id="fileInput" accept=".pdf" multiple>
+    </div>
+    
+    <div id="thumbnailContainer"></div>
+    
+    <button id="mergeBtn" disabled>Merge PDFs</button>
+    
+    <div id="previewModal">
+        <div class="modal-content">
+            <h2>Merged PDF Preview</h2>
+            <iframe id="pdfPreview" sandbox="allow-same-origin"></iframe>
+            <div class="action-buttons">
+                <button class="action-btn download-btn" id="downloadBtn">Download</button>
+                <button class="action-btn print-btn" id="printBtn">Print</button>
+                <button class="action-btn cancel-btn" id="cancelBtn">Cancel</button>
+            </div>
+        </div>
     </div>
 
-    <!-- Rest of your HTML content -->
-    
-    <!-- Load PDF.js first with Trusted Types compatibility -->
+    <!-- PDF.js with Trusted Types compatibility -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.12.313/pdf.min.js"
             integrity="sha512-Z2C9z4h2gFyqtj9Tp/LqGqP0I+3wDkQ5g5bXod4WIZJZQK/6M9u0RZW3WJa7QZk8Zq+lyD7y/1YoUQpG+AE0Yg=="
             crossorigin="anonymous"></script>
     <script>
-        // Initialize PDF.js worker with Trusted Types compatibility
+        // Initialize PDF.js worker securely
         (function() {
             const workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.12.313/pdf.worker.min.js';
             if (window.trustedTypes && trustedTypes.createPolicy) {
@@ -67,12 +225,12 @@
         })();
     </script>
     
-    <!-- Then load PDF-Lib -->
+    <!-- PDF-Lib -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"
             integrity="sha512-+qcj6C/oQHxrk0pKX5VZJZRk8QqLg9oMgD/0HvXXqQ1bKSPRBrRPHZ8NtqMJH3QvR1ZPvXqDgQZc6Rjvq9H3A=="
             crossorigin="anonymous"></script>
     
-    <!-- Your app.js comes last -->
+    <!-- Main Application -->
     <script src="app.js"></script>
 </body>
 </html>
