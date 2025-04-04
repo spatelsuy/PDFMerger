@@ -40,34 +40,69 @@ class SecurityUtils {
         return true;
     }
 
-    static async validateFileAdvanced(file) {
-        // Backend-like validation (more thorough)
-        try {
-            // Check MIME type
-            if (file.type && !SECURITY_CONFIG.ALLOWED_MIME_TYPES.includes(file.type)) {
-                throw new Error('Invalid file type');
-            }
-
-            // Check magic number
-            const header = await this.readFileHeader(file);
-            if (!header.every((val, i) => val === SECURITY_CONFIG.PDF_HEADER[i])) {
-                throw new Error('Invalid PDF header');
-            }
-
-            // Validate with PDF.js
-            const arrayBuffer = await file.arrayBuffer();
-            const pdfDoc = await pdfjsLib.getDocument(arrayBuffer).promise;
-            
-            // Security: Limit pages per document
-            if (pdfDoc.numPages > 100) {
-                throw new Error(`Document has too many pages (${pdfDoc.numPages} > 100)`);
-            }
-            
-            return pdfDoc.numPages;
-        } catch (error) {
-            throw new Error(`PDF validation failed: ${error.message}`);
-        }
+static async validateFileAdvanced(file) {
+    // 1. Check if PDF.js is ready
+    if (typeof pdfjsLib === 'undefined' || !pdfjsLib.getDocument) {
+        throw new Error('PDF engine failed to load. Please refresh the page.');
     }
+
+    try {
+        // 2. Frontend validation (quick checks)
+        const extension = file.name.toLowerCase().slice(-4);
+        if (!SECURITY_CONFIG.ALLOWED_EXTENSIONS.includes(extension)) {
+            throw new Error('Invalid file extension');
+        }
+
+        if (file.size > SECURITY_CONFIG.MAX_FILE_SIZE) {
+            throw new Error(`File exceeds ${SECURITY_CONFIG.MAX_FILE_SIZE/1024/1024}MB size limit`);
+        }
+
+        // 3. Check MIME type (if browser provides it)
+        if (file.type && !SECURITY_CONFIG.ALLOWED_MIME_TYPES.includes(file.type)) {
+            throw new Error('Invalid file type');
+        }
+
+        // 4. Verify PDF header (magic number)
+        const header = await this.readFileHeader(file);
+        if (!header.every((val, i) => val === SECURITY_CONFIG.PDF_HEADER[i])) {
+            throw new Error('Invalid PDF header (not a PDF file)');
+        }
+
+        // 5. Full PDF.js validation
+        const arrayBuffer = await file.arrayBuffer();
+        const pdfDoc = await pdfjsLib.getDocument({ 
+            data: arrayBuffer,
+            // Security options:
+            disableFontFace: true,  // Prevent font parsing vulnerabilities
+            disableRange: true      // Disable range requests for whole-file validation
+        }).promise;
+
+        // 6. Page count validation
+        if (pdfDoc.numPages > 100) {
+            throw new Error(`Document has too many pages (${pdfDoc.numPages} > 100 limit)`);
+        }
+
+        return pdfDoc.numPages;
+
+    } catch (error) {
+        // Enhance error messages for common cases
+        if (error.name === 'InvalidPDFException') {
+            throw new Error('Corrupted or invalid PDF structure');
+        } else if (error.message.includes('password')) {
+            throw new Error('Password-protected PDFs are not supported');
+        }
+        throw new Error(`PDF validation failed: ${error.message}`);
+    }
+}
+
+// Helper function (unchanged from original)
+static async readFileHeader(file, bytes = 4) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(new Uint8Array(reader.result.slice(0, bytes)));
+        reader.readAsArrayBuffer(file.slice(0, bytes));
+    });
+}
 
     static async readFileHeader(file, bytes = 4) {
         return new Promise((resolve) => {
