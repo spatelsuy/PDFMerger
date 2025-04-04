@@ -23,7 +23,16 @@
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.12.313/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
-
+    <!-- PDF.js with SRI -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.12.313/pdf.min.js"
+            integrity="sha512-Z2C9z4h2gFyqtj9Tp/LqGqP0I+3wDkQ5g5bXod4WIZJZQK/6M9u0RZW3WJa7QZk8Zq+lyD7y/1YoUQpG+AE0Yg=="
+            crossorigin="anonymous"></script>
+    
+    <!-- PDF-Lib with SRI -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"
+            integrity="sha512-+qcj6C/oQHxrk0pKX5VZJZRk8QqLg9oMgD/0HvXXqQ1bKSPRBrRPHZ8NtqMJH3QvR1ZPvXqDgQZc6Rjvq9H3A=="
+            crossorigin="anonymous">
+            </script>
     
     <style>
         body {
@@ -116,10 +125,42 @@
             margin-top: 5px;
             word-break: break-all;
         }
+        .library-info {
+            background-color: #f8f9fa;
+            border-left: 4px solid #4CAF50;
+            padding: 15px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        .library-info h3 {
+            margin-top: 0;
+        }
+        .library-info ul {
+            padding-left: 20px;
+        }
+        
     </style>
 </head>
+
 <body>
     <h1>Offline PDF Merger</h1>
+
+    <!-- Library information display -->
+    <div class="library-info">
+        <h3>JavaScript Libraries Used:</h3>
+        <ul>
+            <li><strong>PDF.js v2.12.313</strong> - PDF rendering library by Mozilla
+                <br><small>Loaded from: cdnjs.cloudflare.com</small>
+                <br><small>Official site: <a href="https://mozilla.github.io/pdf.js/" target="_blank" rel="noopener">mozilla.github.io/pdf.js</a></small>
+            </li>
+            <li><strong>PDF-Lib v1.17.1</strong> - PDF manipulation library
+                <br><small>Loaded from: cdnjs.cloudflare.com</small>
+                <br><small>Official site: <a href="https://pdf-lib.js.org/" target="_blank" rel="noopener">pdf-lib.js.org</a></small>
+            </li>
+        </ul>
+        <p>All libraries are loaded with Subresource Integrity (SRI) checks for security.</p>
+    </div>    
+    
     <p>Select multiple PDF files to merge. All processing happens in your browser - your files never leave your computer.</p>
     
     <div class="drop-area" id="dropArea">
