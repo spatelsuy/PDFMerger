@@ -341,8 +341,15 @@
             </div>
         </div>
     </div>
-    
-    <script src="app.js"></script>
+
+
+<!-- Load PDF.js with worker -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.12.313/pdf.min.js"></script>
+<script>
+  // Initialize PDF.js worker
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.12.313/pdf.worker.min.js';
+</script>
+<script src="app.js"></script> <!-- Your code comes AFTER -->    
     
     <!-- Secondary CSP (JavaScript level) -->
     <script>
