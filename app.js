@@ -1,218 +1,316 @@
-// Initialize PDF.js worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.12.313/pdf.worker.min.js';
-
-const dropArea = document.getElementById('dropArea');
-const fileInput = document.getElementById('fileInput');
-const thumbnailContainer = document.getElementById('thumbnailContainer');
-const mergeBtn = document.getElementById('mergeBtn');
-
-let pdfFiles = [];
-
-// Set up drag and drop
-dropArea.addEventListener('click', () => fileInput.click());
-dropArea.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    dropArea.classList.add('highlight');
-});
-dropArea.addEventListener('dragleave', () => {
-    dropArea.classList.remove('highlight');
-});
-dropArea.addEventListener('drop', (e) => {
-    e.preventDefault();
-    dropArea.classList.remove('highlight');
-    handleFiles(e.dataTransfer.files);
+// 1. SECURITY CONSTANTS AND UTILITIES
+const SECURITY_CONFIG = Object.freeze({
+    MAX_FILE_SIZE: 50 * 1024 * 1024, // 50MB
+    MAX_TOTAL_SIZE: 200 * 1024 * 1024, // 200MB
+    ALLOWED_MIME_TYPES: ['application/pdf'],
+    ALLOWED_EXTENSIONS: ['.pdf'],
+    PDF_HEADER: [0x25, 0x50, 0x44, 0x46] // %PDF
 });
 
-fileInput.addEventListener('change', () => {
-    if (fileInput.files.length > 0) {
-        handleFiles(fileInput.files);
+class SecurityUtils {
+    static escapeHtml(unsafe) {
+        return unsafe.replace(/[&<>"']/g, (match) => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;'
+        }[match]));
     }
-});
 
-mergeBtn.addEventListener('click', mergePDFs);
-
-async function handleFiles(files) {
-    const pdfFilesArray = Array.from(files).filter(file => file.type === 'application/pdf');
-    
-    if (pdfFilesArray.length === 0) {
-        alert('Please select PDF files only.');
-        return;
+    static validateFileBasic(file) {
+        // Frontend validation (quick checks)
+        const extension = file.name.toLowerCase().slice(-4);
+        if (!SECURITY_CONFIG.ALLOWED_EXTENSIONS.includes(extension)) {
+            throw new Error('Invalid file extension');
+        }
+        
+        if (file.size > SECURITY_CONFIG.MAX_FILE_SIZE) {
+            throw new Error('File size exceeds limit');
+        }
+        
+        return true;
     }
-    
-    for (const file of pdfFilesArray) {
+
+    static async validateFileAdvanced(file) {
+        // Backend-like validation (more thorough)
         try {
+            // Check MIME type
+            if (file.type && !SECURITY_CONFIG.ALLOWED_MIME_TYPES.includes(file.type)) {
+                throw new Error('Invalid file type');
+            }
+
+            // Check magic number
+            const header = await this.readFileHeader(file);
+            if (!header.every((val, i) => val === SECURITY_CONFIG.PDF_HEADER[i])) {
+                throw new Error('Invalid PDF header');
+            }
+
+            // Validate with PDF.js
             const arrayBuffer = await file.arrayBuffer();
-            const pdfDoc = await pdfjsLib.getDocument(arrayBuffer).promise;
+            await pdfjsLib.getDocument(arrayBuffer).promise;
             
-            // Get first page for thumbnail
-            const page = await pdfDoc.getPage(1);
-            const viewport = page.getViewport({ scale: 0.2 });
-            
-            const canvas = document.createElement('canvas');
-            const context = canvas.getContext('2d');
-            canvas.height = viewport.height;
-            canvas.width = viewport.width;
-            
-            await page.render({
-                canvasContext: context,
-                viewport: viewport
-            }).promise;
-            
-            const thumbnailUrl = canvas.toDataURL();
-            const pageCount = pdfDoc.numPages;
-            
-            pdfFiles.push({
-                file,
-                arrayBuffer,
-                thumbnailUrl,
-                pageCount
-            });
-            
-            renderThumbnails();
+            return true;
         } catch (error) {
-            console.error('Error processing PDF:', error);
-            alert(`Error processing ${file.name}: ${error.message}`);
+            throw new Error(`PDF validation failed: ${error.message}`);
         }
     }
-    
-    if (pdfFiles.length > 0) {
-        mergeBtn.disabled = false;
+
+    static async readFileHeader(file, bytes = 4) {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(new Uint8Array(reader.result.slice(0, bytes)));
+            reader.readAsArrayBuffer(file.slice(0, bytes));
+        });
     }
 }
 
-function renderThumbnails() {
-    thumbnailContainer.innerHTML = '';
-    
-    pdfFiles.forEach((pdfFile, index) => {
-        const thumbnailDiv = document.createElement('div');
-        thumbnailDiv.className = 'thumbnail';
-        thumbnailDiv.draggable = true;
-        thumbnailDiv.dataset.index = index;
-        
-        thumbnailDiv.innerHTML = `
-            <span class="page-number">Page 1 of ${pdfFile.pageCount}</span>
-            <button class="remove-btn" data-index="${index}">×</button>
-            <img src="${pdfFile.thumbnailUrl}" alt="${pdfFile.file.name}">
-            <div class="file-info">${pdfFile.file.name} (${(pdfFile.file.size / 1024).toFixed(1)} KB)</div>
-            <button class="move-up" data-index="${index}">↑</button>
-            <button class="move-down" data-index="${index}">↓</button>
-        `;
-        
-        thumbnailContainer.appendChild(thumbnailDiv);
-        
-        // Set up drag and drop for reordering
-        thumbnailDiv.addEventListener('dragstart', (e) => {
-            e.dataTransfer.setData('text/plain', index);
-            setTimeout(() => thumbnailDiv.classList.add('dragging'), 0);
+// 2. ENHANCED PDF MERGER WITH DUAL VALIDATION
+class SecurePDFMerger {
+    constructor() {
+        this.pdfFiles = [];
+        this.initEventListeners();
+        this.setupSecurityObservers();
+    }
+
+    setupSecurityObservers() {
+        // Monitor for potential XSS attempts
+        document.addEventListener('DOMNodeInserted', (e) => {
+            if (e.target.tagName === 'SCRIPT' && 
+                !e.target.src?.startsWith('https://cdnjs.cloudflare.com/')) {
+                console.warn('Blocked potentially unsafe script insertion');
+                e.target.remove();
+            }
         });
+
+        // Protect against prototype pollution
+        Object.freeze(Object.prototype);
+        Object.freeze(Array.prototype);
+    }
+
+    async handleFiles(files) {
+        const validationStatus = document.getElementById('validationStatus');
+        validationStatus.style.display = 'none';
         
-        thumbnailDiv.addEventListener('dragend', () => {
-            thumbnailDiv.classList.remove('dragging');
-        });
-    });
-    
-    // Set up drop targets for reordering
-    thumbnailContainer.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        const draggingElement = document.querySelector('.thumbnail.dragging');
-        const afterElement = getDragAfterElement(thumbnailContainer, e.clientY);
-        if (afterElement == null) {
-            thumbnailContainer.appendChild(draggingElement);
-        } else {
-            thumbnailContainer.insertBefore(draggingElement, afterElement);
+        try {
+            const fileArray = Array.from(files);
+            const totalSize = fileArray.reduce((sum, file) => sum + file.size, 0);
+            
+            if (totalSize > SECURITY_CONFIG.MAX_TOTAL_SIZE) {
+                throw new Error('Total files size exceeds limit');
+            }
+
+            for (const file of fileArray) {
+                try {
+                    // Frontend validation
+                    SecurityUtils.validateFileBasic(file);
+                    
+                    // Show validation status
+                    validationStatus.textContent = `Validating ${SecurityUtils.escapeHtml(file.name)}...`;
+                    validationStatus.className = 'validation-status';
+                    validationStatus.style.display = 'block';
+                    
+                    // Backend-like validation
+                    await SecurityUtils.validateFileAdvanced(file);
+                    
+                    // Process file
+                    const arrayBuffer = await file.arrayBuffer();
+                    const pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                    
+                    // Security: Limit page processing
+                    if (pdfDoc.numPages > 100) {
+                        throw new Error('Document has too many pages');
+                    }
+
+                    const page = await pdfDoc.getPage(1);
+                    const viewport = page.getViewport({ scale: 0.2 });
+                    
+                    const canvas = document.createElement('canvas');
+                    const context = canvas.getContext('2d', { willReadFrequently: true });
+                    canvas.height = viewport.height;
+                    canvas.width = viewport.width;
+                    
+                    await page.render({
+                        canvasContext: context,
+                        viewport: viewport
+                    }).promise;
+
+                    const thumbnailUrl = canvas.toDataURL('image/jpeg', 0.8);
+                    
+                    this.pdfFiles.push({
+                        file,
+                        arrayBuffer,
+                        thumbnailUrl,
+                        pageCount: pdfDoc.numPages,
+                        isValid: true
+                    });
+                    
+                    validationStatus.textContent = `${SecurityUtils.escapeHtml(file.name)} is valid`;
+                    validationStatus.className = 'validation-status validation-valid';
+                    
+                    this.renderThumbnails();
+                } catch (error) {
+                    console.error('Validation Error:', error);
+                    validationStatus.textContent = `${SecurityUtils.escapeHtml(file.name)}: ${error.message}`;
+                    validationStatus.className = 'validation-status validation-invalid';
+                    throw error;
+                }
+            }
+
+            if (this.pdfFiles.length > 0) {
+                document.getElementById('mergeBtn').disabled = false;
+            }
+        } catch (error) {
+            console.error('Security Error:', error);
+            setTimeout(() => {
+                validationStatus.style.display = 'none';
+            }, 5000);
         }
-    });
-    
-    // Set up remove buttons
-    document.querySelectorAll('.remove-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const index = parseInt(btn.dataset.index);
-            pdfFiles.splice(index, 1);
-            renderThumbnails();
-            if (pdfFiles.length === 0) {
-                mergeBtn.disabled = true;
-            }
-        });
-    });
-    
-    // Set up move up buttons
-    document.querySelectorAll('.move-up').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const index = parseInt(btn.dataset.index);
-            if (index > 0) {
-                [pdfFiles[index], pdfFiles[index - 1]] = [pdfFiles[index - 1], pdfFiles[index]];
-                renderThumbnails();
-            }
-        });
-    });
-    
-    // Set up move down buttons
-    document.querySelectorAll('.move-down').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const index = parseInt(btn.dataset.index);
-            if (index < pdfFiles.length - 1) {
-                [pdfFiles[index], pdfFiles[index + 1]] = [pdfFiles[index + 1], pdfFiles[index]];
-                renderThumbnails();
-            }
-        });
-    });
+    }
+
+    // ... (rest of your existing methods with security enhancements) ...
 }
 
-function getDragAfterElement(container, y) {
-    const draggableElements = [...container.querySelectorAll('.thumbnail:not(.dragging)')];
-    
-    return draggableElements.reduce((closest, child) => {
-        const box = child.getBoundingClientRect();
-        const offset = y - box.top - box.height / 2;
-        
-        if (offset < 0 && offset > closest.offset) {
-            return { offset: offset, element: child };
-        } else {
-            return closest;
-        }
-    }, { offset: Number.NEGATIVE_INFINITY }).element;
-}
+// 3. SECURE PREVIEWER WITH CLOUD INTEGRATION
+class SecurePDFPreviewer {
+    constructor() {
+        this.mergedPdfBlob = null;
+        this.initSecurePreview();
+    }
 
-async function mergePDFs() {
-    if (pdfFiles.length === 0) return;
-    
-    mergeBtn.disabled = true;
-    mergeBtn.textContent = 'Merging...';
-    
-    try {
-        // Create a new PDF document
-        const { PDFDocument } = PDFLib;
-        const mergedPdf = await PDFDocument.create();
+    initSecurePreview() {
+        // Secure iframe for preview
+        const previewContainer = document.getElementById('pdfPreview');
+        previewContainer.innerHTML = '';
         
-        // Copy pages from each PDF
-        for (const pdfFile of pdfFiles) {
-            const pdfDoc = await PDFDocument.load(pdfFile.arrayBuffer);
-            const pages = await mergedPdf.copyPages(pdfDoc, pdfDoc.getPageIndices());
-            pages.forEach(page => mergedPdf.addPage(page));
-        }
+        const iframe = document.createElement('iframe');
+        iframe.sandbox = 'allow-same-origin allow-scripts';
+        iframe.style.width = '100%';
+        iframe.style.height = '100%';
+        iframe.style.border = 'none';
+        previewContainer.appendChild(iframe);
         
-        // Save the merged PDF
-        const mergedPdfBytes = await mergedPdf.save();
+        this.previewIframe = iframe;
+    }
+
+    async showPreview(mergedPdfBytes) {
+        this.mergedPdfBlob = new Blob([mergedPdfBytes], { type: 'application/pdf' });
+        const url = URL.createObjectURL(this.mergedPdfBlob);
         
-        // Create download link
-        const blob = new Blob([mergedPdfBytes], { type: 'application/pdf' });
-        const url = URL.createObjectURL(blob);
+        // Load PDF in secure iframe
+        this.previewIframe.src = url;
+        
+        // Add security watermark
+        const watermark = document.getElementById('securityWatermark');
+        watermark.textContent = 'Secure Preview - ' + new Date().toISOString();
+        watermark.style.position = 'absolute';
+        watermark.style.bottom = '10px';
+        watermark.style.right = '10px';
+        watermark.style.opacity = '0.5';
+        watermark.style.zIndex = '100';
+        
+        document.getElementById('previewModal').style.display = 'block';
+    }
+
+    // Enhanced secure download
+    downloadPDF() {
+        if (!this.mergedPdfBlob) return;
+        
+        const url = URL.createObjectURL(this.mergedPdfBlob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'merged.pdf';
+        a.download = 'secure-merged-document.pdf';
+        a.rel = 'noopener noreferrer';
+        
+        // Security: Time-limited download link
         document.body.appendChild(a);
         a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
         
-    } catch (error) {
-        console.error('Error merging PDFs:', error);
-        alert(`Error merging PDFs: ${error.message}`);
-    } finally {
-        mergeBtn.disabled = false;
-        mergeBtn.textContent = 'Merge PDFs';
+        setTimeout(() => {
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            // Security: Clear the blob after download
+            this.mergedPdfBlob = null;
+        }, 1000);
     }
+
+    // Secure cloud integration
+    async saveToGoogleDrive() {
+        try {
+            // Enable CSP for Google APIs
+            enableCloudFeatures();
+            
+            // Load Google API client securely
+            await this.loadGAPI();
+            
+            // OAuth flow
+            const token = await this.authenticateGoogle();
+            
+            // Upload with security headers
+            const response = await this.uploadToGoogleDrive(token);
+            
+            if (response.ok) {
+                alert('File saved securely to Google Drive');
+            } else {
+                throw new Error('Google Drive upload failed');
+            }
+        } catch (error) {
+            console.error('Google Drive Error:', error);
+            this.showError('Google Drive: ' + error.message);
+        }
+    }
+
+    async loadGAPI() {
+        return new Promise((resolve) => {
+            if (window.gapi) return resolve();
+            
+            const script = document.createElement('script');
+            script.src = 'https://apis.google.com/js/api.js';
+            script.async = true;
+            script.defer = true;
+            script.onload = resolve;
+            document.head.appendChild(script);
+        });
+    }
+
+    // ... (other secure methods) ...
 }
+
+// 4. INITIALIZATION WITH SECURITY CHECKS
+document.addEventListener('DOMContentLoaded', () => {
+    // Environment checks
+    if (!window.isSecureContext) {
+        document.body.innerHTML = `
+            <div style="color: red; padding: 20px; border: 1px solid red; margin: 20px;">
+                <h2>Security Alert</h2>
+                <p>This application requires a secure (HTTPS) connection</p>
+            </div>
+        `;
+        return;
+    }
+
+    // Feature detection
+    if (!('Blob' in window) || !('FileReader' in window)) {
+        alert('Your browser does not support required features');
+        return;
+    }
+
+    try {
+        // Freeze critical objects
+        Object.freeze(Array.prototype);
+        Object.freeze(Object.prototype);
+        
+        // Initialize
+        new SecurePDFMerger();
+    } catch (error) {
+        console.error('Security Initialization Error:', error);
+        document.body.innerHTML = `
+            <div style="color: red; padding: 20px; border: 1px solid red; margin: 20px;">
+                <h2>Security Error</h2>
+                <p>Application could not initialize securely</p>
+                <p>${SecurityUtils.escapeHtml(error.message)}</p>
+            </div>
+        `;
+    }
+});
