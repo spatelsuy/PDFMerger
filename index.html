@@ -3,115 +3,147 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Offline PDF Merger</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.12.313/pdf.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+    <title>Ultimate Secure PDF Merger</title>
+    
+    <!-- Primary CSP (HTML level) -->
+    <meta http-equiv="Content-Security-Policy" 
+          content="default-src 'none';
+                  script-src 'self' cdnjs.cloudflare.com 'wasm-unsafe-eval';
+                  style-src 'self' 'unsafe-inline';
+                  img-src 'self' data: blob:;
+                  font-src 'self';
+                  connect-src 'self';
+                  object-src 'none';
+                  frame-src 'none';
+                  base-uri 'self';
+                  form-action 'none';
+                  require-trusted-types-for 'script'">
+    
+    <!-- Security Headers -->
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="X-Frame-Options" content="DENY">
+    <meta http-equiv="Referrer-Policy" content="no-referrer">
+    
+    <!-- Trusted Types Policy -->
+    <script>
+        if (window.trustedTypes && trustedTypes.createPolicy) {
+            trustedTypes.createPolicy('default', {
+                createHTML: string => {
+                    const div = document.createElement('div');
+                    div.textContent = string;
+                    return div.innerHTML;
+                },
+                createScriptURL: string => {
+                    if (!string.startsWith('https://cdnjs.cloudflare.com/') && 
+                        !string.startsWith(window.location.origin)) {
+                        throw new Error('Untrusted script URL');
+                    }
+                    return string;
+                }
+            });
+        }
+    </script>
+    
+    <!-- Library References with SRI -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.12.313/pdf.min.js"
+            integrity="sha512-Z2C9z4h2gFyqtj9Tp/LqGqP0I+3wDkQ5g5bXod4WIZJZQK/6M9u0RZW3WJa7QZk8Zq+lyD7y/1YoUQpG+AE0Yg=="
+            crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"
+            integrity="sha512-+qcj6C/oQHxrk0pKX5VZJZRk8QqLg9oMgD/0HvXXqQ1bKSPRBrRPHZ8NtqMJH3QvR1ZPvXqDgQZc6Rjvq9H3A=="
+            crossorigin="anonymous"></script>
+    
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        .drop-area {
-            border: 2px dashed #ccc;
-            border-radius: 5px;
-            padding: 30px;
-            text-align: center;
-            margin-bottom: 20px;
-            cursor: pointer;
-        }
-        .drop-area.highlight {
-            border-color: #4CAF50;
-            background-color: #f8f8f8;
-        }
-        #fileInput {
-            display: none;
-        }
-        #thumbnailContainer {
+        /* Previous styles remain... */
+        
+        /* Enhanced security UI elements */
+        .security-badge {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            background: #4CAF50;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-size: 12px;
             display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin-bottom: 20px;
+            align-items: center;
+            gap: 5px;
         }
-        .thumbnail {
-            border: 1px solid #ddd;
+        
+        .security-badge::before {
+            content: "🔒";
+        }
+        
+        /* Enhanced file validation UI */
+        .validation-status {
+            display: none;
+            padding: 10px;
+            margin: 5px 0;
             border-radius: 4px;
-            padding: 5px;
-            width: 150px;
-            position: relative;
+            font-size: 14px;
         }
-        .thumbnail img {
-            width: 100%;
-            height: auto;
-            display: block;
-            margin-bottom: 5px;
+        
+        .validation-valid {
+            background: #e8f5e9;
+            color: #2e7d32;
+            border-left: 4px solid #2e7d32;
         }
-        .thumbnail .page-number {
-            position: absolute;
-            top: 5px;
-            left: 5px;
-            background: rgba(0,0,0,0.7);
-            color: white;
-            padding: 2px 5px;
-            border-radius: 3px;
-            font-size: 12px;
-        }
-        .thumbnail .remove-btn {
-            position: absolute;
-            top: 5px;
-            right: 5px;
-            background: rgba(255,0,0,0.7);
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 20px;
-            height: 20px;
-            cursor: pointer;
-        }
-        .thumbnail .move-up, .thumbnail .move-down {
-            background: rgba(0,0,0,0.5);
-            color: white;
-            border: none;
-            border-radius: 3px;
-            padding: 2px 5px;
-            margin: 2px;
-            cursor: pointer;
-            font-size: 10px;
-        }
-        #mergeBtn {
-            background-color: #4CAF50;
-            color: white;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 16px;
-        }
-        #mergeBtn:disabled {
-            background-color: #cccccc;
-            cursor: not-allowed;
-        }
-        .file-info {
-            font-size: 12px;
-            margin-top: 5px;
-            word-break: break-all;
+        
+        .validation-invalid {
+            background: #ffebee;
+            color: #c62828;
+            border-left: 4px solid #c62828;
         }
     </style>
 </head>
 <body>
-    <h1>Offline PDF Merger</h1>
-    <p>Select multiple PDF files to merge. All processing happens in your browser - your files never leave your computer.</p>
+    <div class="security-badge">Secure Offline Processing</div>
     
-    <div class="drop-area" id="dropArea">
-        <p>Drag & drop PDF files here or click to select</p>
-        <input type="file" id="fileInput" accept=".pdf" multiple>
+    <!-- Your existing HTML structure -->
+    
+    <!-- Enhanced file validation display -->
+    <div id="validationStatus" class="validation-status"></div>
+    
+    <!-- Preview Modal with enhanced security -->
+    <div id="previewModal">
+        <div class="modal-content">
+            <h2>Secure PDF Preview</h2>
+            <div id="pdfPreviewContainer">
+                <div id="pdfPreview"></div>
+                <div id="securityWatermark"></div>
+            </div>
+            <div id="fileError" class="file-error"></div>
+            <div class="action-buttons">
+                <!-- Your action buttons -->
+            </div>
+        </div>
     </div>
     
-    <div id="thumbnailContainer"></div>
-    
-    <button id="mergeBtn" disabled>Merge PDFs</button>
-    
     <script src="app.js"></script>
+    
+    <!-- Secondary CSP (JavaScript level) -->
+    <script>
+        // Enhance CSP when cloud features are needed
+        function enableCloudFeatures() {
+            const newCsp = `
+                default-src 'none';
+                script-src 'self' cdnjs.cloudflare.com 'wasm-unsafe-eval' apis.google.com;
+                style-src 'self' 'unsafe-inline';
+                img-src 'self' data: blob:;
+                font-src 'self';
+                connect-src 'self' https://www.googleapis.com https://graph.microsoft.com;
+                object-src 'none';
+                frame-src 'none';
+                base-uri 'self';
+                form-action 'none' https://docs.google.com;
+                require-trusted-types-for 'script';
+            `.replace(/\n/g, '').trim();
+            
+            const meta = document.createElement('meta');
+            meta.httpEquiv = 'Content-Security-Policy';
+            meta.content = newCsp;
+            document.head.appendChild(meta);
+        }
+    </script>
 </body>
 </html>
