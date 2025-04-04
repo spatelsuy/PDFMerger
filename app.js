@@ -1,150 +1,228 @@
-// ======================
-// SECURITY CONFIGURATION
-// ======================
-const SECURITY_CONFIG = Object.freeze({
+// Security Configuration
+const SECURITY_CONFIG = {
     MAX_FILE_SIZE: 50 * 1024 * 1024, // 50MB
     MAX_TOTAL_SIZE: 200 * 1024 * 1024, // 200MB
-    MAX_PAGES: 500, // Total pages across all documents
-    MAX_DOCUMENTS: 20,
+    MAX_PAGES: 500,
     ALLOWED_MIME_TYPES: ['application/pdf'],
     ALLOWED_EXTENSIONS: ['.pdf'],
-    PDF_HEADER: [0x25, 0x50, 0x44, 0x46], // %PDF
-    WATERMARK_TEXT: `Secure PDF Merger - ${new Date().toISOString().split('T')[0]}`
-});
+    PDF_HEADER: [0x25, 0x50, 0x44, 0x46] // %PDF
+};
 
-// =================
-// SECURITY UTILITIES
-// =================
-class SecurityUtils {
-    static escapeHtml(unsafe) {
-        return unsafe.replace(/[&<>"']/g, (match) => ({
-            '&': '&amp;',
-            '<': '&lt;',
-            '>': '&gt;',
-            '"': '&quot;',
-            "'": '&#039;'
-        }[match]));
-    }
-
-    static async readFileHeader(file, bytes = 4) {
-        return new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(new Uint8Array(reader.result.slice(0, bytes)));
-            reader.readAsArrayBuffer(file.slice(0, bytes));
-        });
-    }
-
-    static async validateFileBasic(file) {
-        // Frontend validation (quick checks)
-        const extension = file.name.toLowerCase().slice(-4);
-        if (!SECURITY_CONFIG.ALLOWED_EXTENSIONS.includes(extension)) {
-            throw new Error('Invalid file extension. Only PDF files are allowed.');
-        }
-        
-        if (file.size > SECURITY_CONFIG.MAX_FILE_SIZE) {
-            throw new Error(`File size exceeds ${SECURITY_CONFIG.MAX_FILE_SIZE/1024/1024}MB limit`);
-        }
-        
-        return true;
-    }
-
-    static async validateFileAdvanced(file) {
-        try {
-            // Check MIME type (if browser provides it)
-            if (file.type && !SECURITY_CONFIG.ALLOWED_MIME_TYPES.includes(file.type)) {
-                throw new Error('Invalid file type');
-            }
-
-            // Verify PDF header (magic number)
-            const header = await this.readFileHeader(file);
-            if (!header.every((val, i) => val === SECURITY_CONFIG.PDF_HEADER[i])) {
-                throw new Error('Invalid PDF header (not a PDF file)');
-            }
-
-            // Full PDF.js validation
-            const arrayBuffer = await file.arrayBuffer();
-            const pdfDoc = await pdfjsLib.getDocument({ 
-                data: arrayBuffer,
-                disableFontFace: true,  // Prevent font parsing vulnerabilities
-                disableRange: true     // Disable range requests for whole-file validation
-            }).promise;
-
-            // Page count validation
-            if (pdfDoc.numPages > 100) {
-                throw new Error(`Document has too many pages (${pdfDoc.numPages} > 100 limit)`);
-            }
-
-            return pdfDoc.numPages;
-        } catch (error) {
-            if (error.name === 'InvalidPDFException') {
-                throw new Error('Corrupted or invalid PDF structure');
-            } else if (error.message.includes('password')) {
-                throw new Error('Password-protected PDFs are not supported');
-            }
-            throw new Error(`PDF validation failed: ${error.message}`);
-        }
-    }
-}
-
-// ======================
-// PDF MERGER CORE CLASS
-// ======================
 class SecurePDFMerger {
     constructor() {
         this.pdfFiles = [];
         this.totalPages = 0;
         this.initEventListeners();
-        this.setupSecurityObservers();
     }
 
-    setupSecurityObservers() {
-        // Monitor for potential XSS attempts
-        document.addEventListener('DOMNodeInserted', (e) => {
-            if (e.target.tagName === 'SCRIPT' && 
-                !e.target.src?.startsWith('https://cdnjs.cloudflare.com/')) {
-                console.warn('Blocked potentially unsafe script insertion');
-                e.target.remove();
+    initEventListeners() {
+        const dropArea = document.getElementById('dropArea');
+        const fileInput = document.getElementById('fileInput');
+        const mergeBtn = document.getElementById('mergeBtn');
+        const previewModal = document.getElementById('previewModal');
+
+        dropArea.addEventListener('click', () => fileInput.click());
+        dropArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropArea.classList.add('highlight');
+        });
+        dropArea.addEventListener('dragleave', () => {
+            dropArea.classList.remove('highlight');
+        });
+        dropArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropArea.classList.remove('highlight');
+            this.handleFiles(e.dataTransfer.files);
+        });
+
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files.length > 0) {
+                this.handleFiles(fileInput.files);
             }
         });
 
-        // Protect against prototype pollution
-        Object.freeze(Object.prototype);
-        Object.freeze(Array.prototype);
+        mergeBtn.addEventListener('click', () => this.mergePDFs());
+
+        // Preview modal buttons
+        document.getElementById('downloadBtn').addEventListener('click', () => this.downloadPDF());
+        document.getElementById('printBtn').addEventListener('click', () => this.printPDF());
+        document.getElementById('cancelBtn').addEventListener('click', () => this.closePreview());
     }
 
-    // ... [rest of your methods remain exactly the same as in previous implementation] ...
+    async handleFiles(files) {
+        const fileArray = Array.from(files);
+        
+        // Check total files count
+        if (fileArray.length > 20) {
+            alert('Maximum 20 files allowed at once');
+            return;
+        }
+
+        // Check total size
+        const totalSize = fileArray.reduce((sum, file) => sum + file.size, 0);
+        if (totalSize > SECURITY_CONFIG.MAX_TOTAL_SIZE) {
+            alert(`Total size exceeds ${SECURITY_CONFIG.MAX_TOTAL_SIZE/1024/1024}MB limit`);
+            return;
+        }
+
+        for (const file of fileArray) {
+            try {
+                // Basic validation
+                if (!file.name.toLowerCase().endsWith('.pdf')) {
+                    throw new Error('Invalid file extension');
+                }
+
+                if (file.size > SECURITY_CONFIG.MAX_FILE_SIZE) {
+                    throw new Error(`File exceeds ${SECURITY_CONFIG.MAX_FILE_SIZE/1024/1024}MB limit`);
+                }
+
+                // Advanced validation
+                const arrayBuffer = await file.arrayBuffer();
+                
+                // Check PDF header
+                const header = new Uint8Array(arrayBuffer.slice(0, 4));
+                if (!header.every((val, i) => val === SECURITY_CONFIG.PDF_HEADER[i])) {
+                    throw new Error('Invalid PDF header');
+                }
+
+                // Validate with PDF.js
+                const pdfDoc = await pdfjsLib.getDocument({ 
+                    data: arrayBuffer,
+                    disableFontFace: true,
+                    disableRange: true
+                }).promise;
+
+                if (pdfDoc.numPages > 100) {
+                    throw new Error('Document has too many pages (>100)');
+                }
+
+                // Create thumbnail
+                const page = await pdfDoc.getPage(1);
+                const viewport = page.getViewport({ scale: 0.2 });
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+                
+                await page.render({
+                    canvasContext: context,
+                    viewport: viewport
+                }).promise;
+
+                this.pdfFiles.push({
+                    file,
+                    arrayBuffer,
+                    thumbnailUrl: canvas.toDataURL(),
+                    pageCount: pdfDoc.numPages
+                });
+
+                this.totalPages += pdfDoc.numPages;
+                this.renderThumbnails();
+                document.getElementById('mergeBtn').disabled = false;
+
+            } catch (error) {
+                console.error(`Error processing ${file.name}:`, error);
+                alert(`${file.name}: ${error.message}`);
+            }
+        }
+    }
+
+    renderThumbnails() {
+        const container = document.getElementById('thumbnailContainer');
+        container.innerHTML = '';
+
+        this.pdfFiles.forEach((pdfFile, index) => {
+            const thumbnailDiv = document.createElement('div');
+            thumbnailDiv.className = 'thumbnail';
+            thumbnailDiv.innerHTML = `
+                <span class="page-number">Page 1 of ${pdfFile.pageCount}</span>
+                <button class="remove-btn" data-index="${index}">×</button>
+                <img src="${pdfFile.thumbnailUrl}" alt="Preview">
+                <div class="file-info">${pdfFile.file.name} (${(pdfFile.file.size/1024).toFixed(1)}KB)</div>
+            `;
+            container.appendChild(thumbnailDiv);
+
+            // Add remove button event
+            thumbnailDiv.querySelector('.remove-btn').addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.pdfFiles.splice(index, 1);
+                this.renderThumbnails();
+                if (this.pdfFiles.length === 0) {
+                    document.getElementById('mergeBtn').disabled = true;
+                }
+            });
+        });
+    }
+
+    async mergePDFs() {
+        const mergeBtn = document.getElementById('mergeBtn');
+        mergeBtn.disabled = true;
+        mergeBtn.textContent = 'Merging...';
+
+        try {
+            const { PDFDocument } = PDFLib;
+            const mergedPdf = await PDFDocument.create();
+
+            for (const pdfFile of this.pdfFiles) {
+                const pdfDoc = await PDFDocument.load(pdfFile.arrayBuffer);
+                const pages = await mergedPdf.copyPages(pdfDoc, pdfDoc.getPageIndices());
+                pages.forEach(page => mergedPdf.addPage(page));
+            }
+
+            const mergedPdfBytes = await mergedPdf.save();
+            this.showPreview(mergedPdfBytes);
+
+        } catch (error) {
+            console.error('Merge failed:', error);
+            alert('Merge failed: ' + error.message);
+        } finally {
+            mergeBtn.disabled = false;
+            mergeBtn.textContent = 'Merge PDFs';
+        }
+    }
+
+    showPreview(pdfBytes) {
+        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+        document.getElementById('pdfPreview').src = url;
+        document.getElementById('previewModal').style.display = 'block';
+        this.currentPdfUrl = url;
+    }
+
+    downloadPDF() {
+        const a = document.createElement('a');
+        a.href = this.currentPdfUrl;
+        a.download = 'merged-document.pdf';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    }
+
+    printPDF() {
+        const iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        iframe.src = this.currentPdfUrl;
+        document.body.appendChild(iframe);
+        iframe.onload = () => {
+            iframe.contentWindow.print();
+            setTimeout(() => {
+                document.body.removeChild(iframe);
+            }, 1000);
+        };
+    }
+
+    closePreview() {
+        URL.revokeObjectURL(this.currentPdfUrl);
+        document.getElementById('previewModal').style.display = 'none';
+    }
 }
 
-// ======================
-// APPLICATION INITIALIZATION
-// ======================
+// Initialize when PDF.js is ready
 document.addEventListener('DOMContentLoaded', () => {
-    // Environment checks
-    if (!window.isSecureContext) {
-        document.body.innerHTML = `
-            <div style="color: red; padding: 20px; border: 1px solid red; margin: 20px;">
-                <h2>Security Alert</h2>
-                <p>This application requires a secure (HTTPS) connection</p>
-            </div>
-        `;
-        return;
-    }
-
-    // Wait for PDF.js to be fully ready
-    const checkPDFJS = setInterval(() => {
+    const checkReady = setInterval(() => {
         if (typeof pdfjsLib !== 'undefined' && pdfjsLib.GlobalWorkerOptions.workerSrc) {
-            clearInterval(checkPDFJS);
-            try {
-                new SecurePDFMerger();
-            } catch (error) {
-                console.error('Initialization Error:', error);
-                document.body.innerHTML = `
-                    <div style="color: red; padding: 20px; border: 1px solid red; margin: 20px;">
-                        <h2>Initialization Error</h2>
-                        <p>${SecurityUtils.escapeHtml(error.message)}</p>
-                    </div>
-                `;
-            }
+            clearInterval(checkReady);
+            new SecurePDFMerger();
         }
     }, 100);
 });
