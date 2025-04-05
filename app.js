@@ -272,7 +272,8 @@ async function convertToPDF(file) {
   try {
     const arrayBuffer = await file.arrayBuffer();
     const pdfDoc = await PDFLib.PDFDocument.create();
-    
+    alert(fileExtension);
+    alert(arrayBuffer);
     if (fileExtension === 'png' || fileExtension === 'jpg' || fileExtension === 'jpeg') {
       // If it's an image, add it as an image in PDF
       const imageBytes = new Uint8Array(arrayBuffer);
@@ -288,7 +289,7 @@ async function convertToPDF(file) {
     } else {
       throw new Error('Unsupported file type for conversion');
     }
-    
+    alert("you are here");
     // Serialize the PDF to bytes and create a Blob object for the new PDF
     const pdfBytes = await pdfDoc.save();
     const convertedPdfFile = new Blob([pdfBytes], { type: 'application/pdf' });
