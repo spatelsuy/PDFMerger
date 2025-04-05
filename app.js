@@ -268,7 +268,8 @@ async function mergePDFs() {
 
 async function convertToPDF(file) {
   const fileExtension = file.name.split('.').pop().toLowerCase();
-  
+  const { PDFDocument, rgb } = PDFLib;
+
   try {
     const arrayBuffer = await file.arrayBuffer();
     const pdfDoc = await PDFLib.PDFDocument.create();
@@ -282,22 +283,42 @@ async function convertToPDF(file) {
       const page = pdfDoc.addPage([image.width, image.height]);
       page.drawImage(image, { x: 0, y: 0 });
     } else if (fileExtension === 'txt') {
-      // If it's a text file, add text content to PDF
-      const textContent = new TextDecoder().decode(arrayBuffer);
-      const page = pdfDoc.addPage([600, 400]);
-      page.drawText(textContent, { x: 20, y: 350, size: 12 });
-    } else {
-      throw new Error('Unsupported file type for conversion');
-    }
-    alert("you are here");
-    // Serialize the PDF to bytes and create a Blob object for the new PDF
-    const pdfBytes = await pdfDoc.save();
-    alert("you are here " + pdfBytes);
-    const convertedPdfFile = new Blob([pdfBytes], { type: 'application/pdf' });
-    alert("you are here " + convertedPdfFile);
-    
-    // Optionally, you can generate a download link or return the Blob
-    return convertedPdfFile;
+      textFile = file;
+
+      // 1. Read the text file content
+      const textContent = await textFile.text();
+      alert(textContent);
+
+      // 2. Create a new PDF document
+      const pdfDoc = await PDFDocument.create();
+      const page = pdfDoc.addPage([550, 750]); // A4-ish size
+
+      // 3. Add text to PDF (with basic formatting)
+      page.drawText(textContent, {
+        x: 50,
+        y: 700,
+        size: 12,
+        color: rgb(0, 0, 0),
+        lineHeight: 15,
+        maxWidth: 500,
+      });
+
+      // 4. Generate filename with timestamp
+      const timestamp = new Date()
+        .toISOString()
+        .replace(/[:.]/g, '')
+        .replace('T', '_')
+        .slice(0, 15);
+      const originalName = textFile.name.replace(/\.[^/.]+$/, ''); // Remove extension
+      const pdfFilename = `${originalName}_${timestamp}.pdf`;
+
+      // 5. Save and return
+      const pdfBytes = await pdfDoc.save();
+      return {
+        filename: pdfFilename,
+        blob: new Blob([pdfBytes], { type: 'application/pdf' })
+      };
+
   } catch (error) {
     console.error('Error converting file to PDF:', error);
     throw error;
