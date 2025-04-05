@@ -292,7 +292,9 @@ async function convertToPDF(file) {
     alert("you are here");
     // Serialize the PDF to bytes and create a Blob object for the new PDF
     const pdfBytes = await pdfDoc.save();
+    alert("you are here " + pdfBytes);
     const convertedPdfFile = new Blob([pdfBytes], { type: 'application/pdf' });
+    alert("you are here " + convertedPdfFile);
     
     // Optionally, you can generate a download link or return the Blob
     return convertedPdfFile;
