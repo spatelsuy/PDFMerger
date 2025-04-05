@@ -9,33 +9,81 @@ const mergeBtn = document.getElementById('mergeBtn');
 let pdfFiles = [];
 
 // Set up drag and drop
-dropArea.addEventListener('click', () => fileInput.click());
-dropArea.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    dropArea.classList.add('highlight');
+// both the methods do the same work, but put in two way of writing. 
+// adding event listner to dropArea
+//When someone clicks on the dropArea, it programmatically "clicks" the hidden fileInput, which opens the file selection dialog.
+// dropArea.addEventListener('click', () => fileInput.click());
+dropArea.addEventListener('click', function() {
+  fileInput.click();
 });
+
+//When you drag something (like a file) over the drop area, 
+//this code stops the browser from blocking the drop, and adds a visual "highlight" effect to show users that they can drop it there.
+dropArea.addEventListener('dragover', function(e) {
+  e.preventDefault();
+  dropArea.classList.add('highlight');
+});
+
+// When you drag a file over the drop area and then move it away without dropping, 
+// this code removes the highlight effect from the area — to show that it’s no longer active or ready for a drop.
 dropArea.addEventListener('dragleave', () => {
     dropArea.classList.remove('highlight');
 });
+
+// When someone drops file(s) into the drop area:
+// Stop the browser from doing something unexpected.
+// Remove the "highlight" effect from the drop area.
+// Get the dropped file(s).
+// Hand them over to a function that processes them "handleFiles"
+
 dropArea.addEventListener('drop', (e) => {
     e.preventDefault();
     dropArea.classList.remove('highlight');
     handleFiles(e.dataTransfer.files);
 });
 
+// When a user selects file(s) using the file input (click and browse):
+// Check that some files were actually selected.
+// Then send those files to the handleFiles() function for further processing (like previewing or uploading).
 fileInput.addEventListener('change', () => {
     if (fileInput.files.length > 0) {
         handleFiles(fileInput.files);
     }
 });
 
+// event handler when user click "merge PDFs" button
 mergeBtn.addEventListener('click', mergePDFs);
 
+
+// This handleFiles() function takes a list of files and Filters for only PDFs.
+// If a file is not PDF and can be converted to PDF, it will convert by taking user permission
+// Reads each one and generates a small image preview of the first page.
+// Stores the preview and other info for display and merging.
+ 
 async function handleFiles(files) {
-    const pdfFilesArray = Array.from(files).filter(file => file.type === 'application/pdf');
-    
+    //const pdfFilesArray = Array.from(files).filter(file => file.type === 'application/pdf');
+    for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        if (file.type === 'application/pdf') {
+            pdfFilesArray.push(file);
+        } else {
+            const confirmConversion = confirm(`"${file.name}" is not a PDF. Do you want to convert it to PDF and merge?`);
+            if (confirmConversion) {
+                try {
+                    const convertedPdfFile = await convertToPDF(file);
+                    if (convertedPdfFile) {
+                        pdfFilesArray.push(convertedPdfFile);
+                    }
+                } catch (error) {
+                    alert(`Failed to convert "${file.name}" to PDF: ${error.message}`);
+                    console.error(error);
+                }
+            }
+        }
+    }
+
     if (pdfFilesArray.length === 0) {
-        alert('Please select PDF files only.');
+        alert('Please select PDF files only or files that can be converted to PDF.');
         return;
     }
     
@@ -216,3 +264,41 @@ async function mergePDFs() {
         mergeBtn.textContent = 'Merge PDFs';
     }
 }
+
+
+async function convertToPDF(file) {
+  const fileExtension = file.name.split('.').pop().toLowerCase();
+  
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const pdfDoc = await PDFLib.PDFDocument.create();
+    
+    if (fileExtension === 'png' || fileExtension === 'jpg' || fileExtension === 'jpeg') {
+      // If it's an image, add it as an image in PDF
+      const imageBytes = new Uint8Array(arrayBuffer);
+      const image = await pdfDoc.embedPng(imageBytes); // embed PNG or JPG image
+      
+      const page = pdfDoc.addPage([image.width, image.height]);
+      page.drawImage(image, { x: 0, y: 0 });
+    } else if (fileExtension === 'txt') {
+      // If it's a text file, add text content to PDF
+      const textContent = new TextDecoder().decode(arrayBuffer);
+      const page = pdfDoc.addPage([600, 400]);
+      page.drawText(textContent, { x: 20, y: 350, size: 12 });
+    } else {
+      throw new Error('Unsupported file type for conversion');
+    }
+    
+    // Serialize the PDF to bytes and create a Blob object for the new PDF
+    const pdfBytes = await pdfDoc.save();
+    const convertedPdfFile = new Blob([pdfBytes], { type: 'application/pdf' });
+    
+    // Optionally, you can generate a download link or return the Blob
+    return convertedPdfFile;
+  } catch (error) {
+    console.error('Error converting file to PDF:', error);
+    throw error;
+  }
+}
+
+
