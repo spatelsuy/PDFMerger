@@ -1,5 +1,5 @@
 // Initialize PDF.js worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'LIB/pdf.worker.min_2.12.313.js';
+pdfjsLib.GlobalWorkerOptions.workerSrc = '/LIB/pdf.worker.min_2.12.313.js';
 
 const dropArea = document.getElementById('dropArea');
 const fileInput = document.getElementById('fileInput');
