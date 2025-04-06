@@ -288,7 +288,9 @@ async function convertToPDF(file) {
       await addImageToPDF(pdfDoc, page, file);
     } else if (file.type === 'text/plain') {
       // Handle text conversion
+      alert(1);
       await addTextToPDF(pdfDoc, page, file);
+      alert(2);
     } else {
       throw new Error('Unsupported file type');
     }
@@ -336,17 +338,17 @@ async function addTextToPDF(pdfDoc, page, textFile) {
   const fontSize = 12;
   const lineHeight = 15;
   let yPosition = page.getHeight() - 50;
-
+  alert(3);
   // Embed standard font
   const font = await pdfDoc.embedFont(PDFDocument.StandardFonts.Helvetica);
-
+alert(4);
   // Draw each line with proper line breaks
   for (const line of lines) {
     if (yPosition < 50) { // Add new page if needed
       page = pdfDoc.addPage([600, 800]);
       yPosition = page.getHeight() - 50;
     }
-    
+    alert(5);
     page.drawText(line, {
       x: 50,
       y: yPosition,
@@ -355,7 +357,7 @@ async function addTextToPDF(pdfDoc, page, textFile) {
       color: rgb(0, 0, 0),
       maxWidth: 500,
     });
-    
+    alert(6);
     yPosition -= lineHeight;
   }
 }
