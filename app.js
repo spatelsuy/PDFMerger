@@ -265,64 +265,97 @@ async function mergePDFs() {
     }
 }
 
-
+/**
+ * Converts a file (image or text) to PDF
+ * @param {File} file - Input file (image or text)
+ * @returns {Promise<{filename: string, blob: Blob}>} - PDF filename and Blob
+ */
 async function convertToPDF(file) {
-  const fileExtension = file.name.split('.').pop().toLowerCase();
   const { PDFDocument, rgb } = PDFLib;
 
+  // Create PDF document
+  const pdfDoc = await PDFDocument.create();
+  const page = pdfDoc.addPage([600, 800]); // Default page size
+
+  // Generate filename with timestamp
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '').slice(0, 15);
+  const baseName = file.name.replace(/\.[^/.]+$/, '');
+  const pdfFilename = `${baseName}_${timestamp}.pdf`;
+
   try {
-    const arrayBuffer = await file.arrayBuffer();
-    const pdfDoc = await PDFLib.PDFDocument.create();
-    alert(fileExtension);
-    alert(arrayBuffer);
-    if (fileExtension === 'png' || fileExtension === 'jpg' || fileExtension === 'jpeg') {
-      // If it's an image, add it as an image in PDF
-      const imageBytes = new Uint8Array(arrayBuffer);
-      const image = await pdfDoc.embedPng(imageBytes); // embed PNG or JPG image
-      
-      const page = pdfDoc.addPage([image.width, image.height]);
-      page.drawImage(image, { x: 0, y: 0 });
-    } else if (fileExtension === 'txt') {
-      textFile = file;
+    if (file.type.startsWith('image/')) {
+      // Handle image conversion
+      await addImageToPDF(pdfDoc, page, file);
+    } else if (file.type === 'text/plain') {
+      // Handle text conversion
+      await addTextToPDF(pdfDoc, page, file);
+    } else {
+      throw new Error('Unsupported file type');
+    }
 
-      // 1. Read the text file content
-      const textContent = await textFile.text();
-      alert(textContent);
-
-      // 2. Create a new PDF document
-      const pdfDoc = await PDFDocument.create();
-      const page = pdfDoc.addPage([550, 750]); // A4-ish size
-
-      // 3. Add text to PDF (with basic formatting)
-      page.drawText(textContent, {
-        x: 50,
-        y: 700,
-        size: 12,
-        color: rgb(0, 0, 0),
-        lineHeight: 15,
-        maxWidth: 500,
-      });
-
-      // 4. Generate filename with timestamp
-      const timestamp = new Date()
-        .toISOString()
-        .replace(/[:.]/g, '')
-        .replace('T', '_')
-        .slice(0, 15);
-      const originalName = textFile.name.replace(/\.[^/.]+$/, ''); // Remove extension
-      const pdfFilename = `${originalName}_${timestamp}.pdf`;
-
-      // 5. Save and return
-      const pdfBytes = await pdfDoc.save();
-      return {
-        filename: pdfFilename,
-        blob: new Blob([pdfBytes], { type: 'application/pdf' })
-      };
+    // Save and return
+    const pdfBytes = await pdfDoc.save();
+    return {
+      filename: pdfFilename,
+      blob: new Blob([pdfBytes], { type: 'application/pdf' })
+    };
 
   } catch (error) {
-    console.error('Error converting file to PDF:', error);
-    throw error;
+    console.error('Conversion error:', error);
+    throw new Error(`Failed to convert ${file.name} to PDF`);
   }
 }
 
+// Helper: Add image to PDF
+async function addImageToPDF(pdfDoc, page, imageFile) {
+  const imageBytes = await imageFile.arrayBuffer();
+  let image;
+  
+  if (imageFile.type === 'image/jpeg') {
+    image = await pdfDoc.embedJpg(imageBytes);
+  } else if (imageFile.type === 'image/png') {
+    image = await pdfDoc.embedPng(imageBytes);
+  } else {
+    throw new Error('Unsupported image format');
+  }
 
+  // Scale image to fit page (maintaining aspect ratio)
+  const { width, height } = image.scale(0.5);
+  page.drawImage(image, {
+    x: 50,
+    y: page.getHeight() - height - 50,
+    width,
+    height,
+  });
+}
+
+// Helper: Add text to PDF
+async function addTextToPDF(pdfDoc, page, textFile) {
+  const textContent = await textFile.text();
+  const lines = textContent.split('\n');
+  const fontSize = 12;
+  const lineHeight = 15;
+  let yPosition = page.getHeight() - 50;
+
+  // Embed standard font
+  const font = await pdfDoc.embedFont(PDFDocument.StandardFonts.Helvetica);
+
+  // Draw each line with proper line breaks
+  for (const line of lines) {
+    if (yPosition < 50) { // Add new page if needed
+      page = pdfDoc.addPage([600, 800]);
+      yPosition = page.getHeight() - 50;
+    }
+    
+    page.drawText(line, {
+      x: 50,
+      y: yPosition,
+      size: fontSize,
+      font,
+      color: rgb(0, 0, 0),
+      maxWidth: 500,
+    });
+    
+    yPosition -= lineHeight;
+  }
+}
