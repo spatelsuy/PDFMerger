@@ -61,7 +61,8 @@ mergeBtn.addEventListener('click', mergePDFs);
 // Stores the preview and other info for display and merging.
  
 async function handleFiles(files) {
-    //const pdfFilesArray = Array.from(files).filter(file => file.type === 'application/pdf');
+    const pdfFilesArray = Array.from(files).filter(file => file.type === 'application/pdf');
+    /*
     for (let i = 0; i < files.length; i++) {
         const file = files[i];
         if (file.type === 'application/pdf') {
@@ -79,8 +80,8 @@ async function handleFiles(files) {
                     console.error(error);
                 }
             }
-        }*/
-    }
+        }
+    }*/
 
     if (pdfFilesArray.length === 0) {
         alert('Please select PDF files only or files that can be converted to PDF.');
