@@ -66,7 +66,7 @@ async function handleFiles(files) {
         const file = files[i];
         if (file.type === 'application/pdf') {
             pdfFilesArray.push(file);
-        } else {
+        } /*else {
             const confirmConversion = confirm(`"${file.name}" is not a PDF. Do you want to convert it to PDF and merge?`);
             if (confirmConversion) {
                 try {
@@ -79,7 +79,7 @@ async function handleFiles(files) {
                     console.error(error);
                 }
             }
-        }
+        }*/
     }
 
     if (pdfFilesArray.length === 0) {
@@ -263,107 +263,4 @@ async function mergePDFs() {
         mergeBtn.disabled = false;
         mergeBtn.textContent = 'Merge PDFs';
     }
-}
-
-/**
- * Converts a file (image or text) to PDF
- * @param {File} file - Input file (image or text)
- * @returns {Promise<{filename: string, blob: Blob}>} - PDF filename and Blob
- */
-async function convertToPDF(file) {
-  const { PDFDocument, rgb } = PDFLib;
-
-  // Create PDF document
-  const pdfDoc = await PDFDocument.create();
-  const page = pdfDoc.addPage([600, 800]); // Default page size
-
-  // Generate filename with timestamp
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '').slice(0, 15);
-  const baseName = file.name.replace(/\.[^/.]+$/, '');
-  const pdfFilename = `${baseName}_${timestamp}.pdf`;
-
-  try {
-    if (file.type.startsWith('image/')) {
-      // Handle image conversion
-      await addImageToPDF(pdfDoc, page, file);
-    } else if (file.type === 'text/plain') {
-      // Handle text conversion
-      alert(1);
-      await addTextToPDF(pdfDoc, page, file);
-      alert(2);
-    } else {
-      throw new Error('Unsupported file type');
-    }
-
-    // Save and return
-    const pdfBytes = await pdfDoc.save();
-    return {
-      filename: pdfFilename,
-      blob: new Blob([pdfBytes], { type: 'application/pdf' })
-    };
-
-  } catch (error) {
-    console.error('Conversion error:', error);
-    throw new Error(`Failed to convert ${file.name} to PDF`);
-  }
-}
-
-// Helper: Add image to PDF
-async function addImageToPDF(pdfDoc, page, imageFile) {
-  const imageBytes = await imageFile.arrayBuffer();
-  let image;
-  
-  if (imageFile.type === 'image/jpeg') {
-    image = await pdfDoc.embedJpg(imageBytes);
-  } else if (imageFile.type === 'image/png') {
-    image = await pdfDoc.embedPng(imageBytes);
-  } else {
-    throw new Error('Unsupported image format');
-  }
-
-  // Scale image to fit page (maintaining aspect ratio)
-  const { width, height } = image.scale(0.5);
-  page.drawImage(image, {
-    x: 50,
-    y: page.getHeight() - height - 50,
-    width,
-    height,
-  });
-}
-
-// Helper: Add text to PDF
-async function addTextToPDF(pdfDoc, page, textFile) {
-  const textContent = await textFile.text();
-  const lines = textContent.split('\n');
-  const fontSize = 12;
-  const lineHeight = 15;
-  let yPosition = page.getHeight() - 50;
-  alert(3);
-  // Embed standard font
-
-
-  const { PDFDocument } = require('pdf-lib');
-  const { StandardFonts } = PDFDocument;
-
-  const pdfDoc1 = await PDFDocument.create();
-  const font = await pdfDoc1.embedFont(StandardFonts.Helvetica);
-alert(4);
-  // Draw each line with proper line breaks
-  for (const line of lines) {
-    if (yPosition < 50) { // Add new page if needed
-      page = pdfDoc1.addPage([600, 800]);
-      yPosition = page.getHeight() - 50;
-    }
-    alert(5);
-    page.drawText(line, {
-      x: 50,
-      y: yPosition,
-      size: fontSize,
-      font,
-      color: rgb(0, 0, 0),
-      maxWidth: 500,
-    });
-    alert(6);
-    yPosition -= lineHeight;
-  }
 }
