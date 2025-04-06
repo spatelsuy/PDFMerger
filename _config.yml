@@ -1,7 +1,6 @@
-plugins:
-  - jekyll-seo-tag
-
 title: Secure PDF Merger
 description: A browser-based tool to merge PDFs securely without uploading. Combine multiple PDF files directly in your browser without uploading.
 url: https://spatelsuy.github.io/PDFMerger/
 author: Sunil Patel
+plugins:
+  - jekyll-seo-tag
