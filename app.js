@@ -341,12 +341,13 @@ async function addTextToPDF(pdfDoc, page, textFile) {
   alert(3);
   // Embed standard font
   const { PDFDocument, StandardFonts } = require('pdf-lib');
-  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const pdfDoc1 = await PDFDocument.create();
+  const font = await pdfDoc1.embedFont(StandardFonts.Helvetica);
 alert(4);
   // Draw each line with proper line breaks
   for (const line of lines) {
     if (yPosition < 50) { // Add new page if needed
-      page = pdfDoc.addPage([600, 800]);
+      page = pdfDoc1.addPage([600, 800]);
       yPosition = page.getHeight() - 50;
     }
     alert(5);
