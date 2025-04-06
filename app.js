@@ -340,7 +340,8 @@ async function addTextToPDF(pdfDoc, page, textFile) {
   let yPosition = page.getHeight() - 50;
   alert(3);
   // Embed standard font
-  const font = await pdfDoc.embedFont(PDFDocument.StandardFonts.Helvetica);
+  const { PDFDocument, StandardFonts } = require('pdf-lib');
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
 alert(4);
   // Draw each line with proper line breaks
   for (const line of lines) {
